@@ -9,6 +9,7 @@ ascii_art=' ▄██████▄    ▄▄▄▄███▄▄▄▄      �
                                           ███    ███                                    '
 
 echo -e "\n$ascii_art\n"
+echo -e "\nOmarchy Custom Fork by Ivan\n"
 
 pacman -Q git &>/dev/null || sudo pacman -Sy --noconfirm --needed git
 
