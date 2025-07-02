@@ -1,5 +1,5 @@
 yay -S --noconfirm --needed \
-  obsidian onlyoffice kdenlive \
+  obsidian onlyoffice-bin kdenlive \
   pinta strawberry
 
 # Copy over Omarchy applications
