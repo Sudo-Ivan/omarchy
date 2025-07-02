@@ -1,10 +1,11 @@
-# Omarchy - Ivans Custom Fork
+# Omarchy - Ivans Custom Fork Edition
 
-- Removed CUPS, Signal, Spotify, Dropbox and Zoom.
-- Replace 1Password with KeepassXC.
-- Replace VLC with MPV.
-- Replace Chromium with ungoogled-chromium.
-- Remove web apps.
+This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](https://github.com/dhh)
+
+- Removed CUPS (printer), Signal, Spotify, Dropbox, Zoom and webapps.
+- Replaced 1Password with KeepassXC.
+- Replaced VLC with MPV.
+- Replaced Chromium with ungoogled-chromium.
 
 ## Installation
 
@@ -12,12 +13,7 @@
 curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash
 ```
 
-
-Turn a fresh Arch installation into a fully-configured, beautiful, and modern web development system based on Hyprland by running a single command. That's the one-line pitch for Omarchy (like it was for Omakub). No need to write bespoke configs for every essential tool just to get started or to be up on all the latest command-line tools. Omarchy is an opinionated take on what Linux can be at its best.
-
-Read more at [omarchy.org](https://omarchy.org).
-
 ## License
 
-Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
+[MIT License](https://opensource.org/licenses/MIT).
 
