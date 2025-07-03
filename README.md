@@ -11,6 +11,7 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 - Bluetooth disabled by default. Run `sudo systemctl enable --now bluetooth.service` to enable it.
 - Added FIDO2 support.
 - Added FUSE2 support (some AppImages depend on it).
+- Rank mirrors first using reflector for fast package download speeds.
 
 ## WIP
 
