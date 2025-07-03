@@ -42,6 +42,33 @@ RUN echo '#!/bin/bash' > /usr/local/bin/powerprofilesctl && \
     echo 'exit 0' >> /usr/local/bin/powerprofilesctl && \
     chmod +x /usr/local/bin/powerprofilesctl
 
+# Create mock mkinitcpio.conf to prevent sed failures
+RUN echo 'MODULES=()' > /etc/mkinitcpio.conf && \
+    echo 'BINARIES=()' >> /etc/mkinitcpio.conf && \
+    echo 'FILES=()' >> /etc/mkinitcpio.conf && \
+    echo 'HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)' >> /etc/mkinitcpio.conf
+
+# Create mock mkinitcpio command to prevent failures
+RUN echo '#!/bin/bash' > /usr/local/bin/mkinitcpio && \
+    echo 'echo "Mock mkinitcpio: $@"' >> /usr/local/bin/mkinitcpio && \
+    echo 'exit 0' >> /usr/local/bin/mkinitcpio && \
+    chmod +x /usr/local/bin/mkinitcpio && \
+    ln -sf /usr/local/bin/mkinitcpio /usr/bin/mkinitcpio
+
+# Create mock updatedb to prevent locate failures
+RUN echo '#!/bin/bash' > /usr/local/bin/updatedb && \
+    echo 'echo "Mock updatedb: $@"' >> /usr/local/bin/updatedb && \
+    echo 'exit 0' >> /usr/local/bin/updatedb && \
+    chmod +x /usr/local/bin/updatedb && \
+    ln -sf /usr/local/bin/updatedb /usr/bin/updatedb
+
+# Create mock reboot to prevent actual reboot
+RUN echo '#!/bin/bash' > /usr/local/bin/reboot && \
+    echo 'echo "Mock reboot: $@"' >> /usr/local/bin/reboot && \
+    echo 'exit 0' >> /usr/local/bin/reboot && \
+    chmod +x /usr/local/bin/reboot && \
+    ln -sf /usr/local/bin/reboot /usr/bin/reboot
+
 # Prevent sudoers syntax issues by pre-creating the problematic files
 RUN mkdir -p /etc/sudoers.d && \
     echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser && \
