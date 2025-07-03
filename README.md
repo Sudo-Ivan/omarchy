@@ -14,6 +14,11 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 - Added Flatpak.
 - Install and enable OpenSnitch firewall.
 
+## Optional Configuration Scripts
+
+- `bin/ivans-custom-setup` - My custom post-setup script. 
+- `bin/time-sync` - Time synchronization script using HTTPS to trusted sources.
+
 ## WIP
 
 - [ ] CI Tests via Docker. 
