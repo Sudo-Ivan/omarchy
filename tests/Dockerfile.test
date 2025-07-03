@@ -4,7 +4,14 @@ FROM archlinux:latest
 RUN pacman-key --init && \
     pacman-key --populate archlinux && \
     pacman -Syu --noconfirm && \
-    pacman -S --noconfirm git curl wget base-devel sudo haveged
+    pacman -S --noconfirm git curl wget base-devel sudo haveged dbus
+
+# Enable multilib repository for 32-bit libraries
+RUN sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf && \
+    pacman -Sy --noconfirm
+
+# Create machine-id to prevent dconf warnings
+RUN dbus-uuidgen --ensure
 
 # Create test user
 RUN useradd -m -G wheel testuser && \
@@ -45,6 +52,9 @@ RUN mkdir -p /etc/sudoers.d && \
 USER testuser
 WORKDIR /home/testuser
 ENV USER=testuser
+
+# Set environment to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Initialize user GPG if needed
 RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
