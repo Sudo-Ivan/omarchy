@@ -17,13 +17,23 @@ RUN echo '#!/bin/bash' > /usr/local/bin/systemctl && \
     chmod +x /usr/local/bin/systemctl && \
     ln -sf /usr/local/bin/systemctl /usr/bin/systemctl
 
-# Prevent sudoers syntax issues
-RUN mkdir -p /etc/sudoers.d && \
-    echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser
+# Create mock usermod to prevent failures
+RUN echo '#!/bin/bash' > /usr/local/bin/usermod && \
+    echo 'echo "Mock usermod: $@"' >> /usr/local/bin/usermod && \
+    echo 'exit 0' >> /usr/local/bin/usermod && \
+    chmod +x /usr/local/bin/usermod && \
+    ln -sf /usr/local/bin/usermod /usr/bin/usermod
 
-# Switch to testuser
+# Prevent sudoers syntax issues by pre-creating the problematic files
+RUN mkdir -p /etc/sudoers.d && \
+    echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser && \
+    echo "testuser ALL=(ALL) NOPASSWD: /usr/local/bin/asdcontrol" > /etc/sudoers.d/asdcontrol && \
+    chmod 440 /etc/sudoers.d/asdcontrol
+
+# Switch to testuser and set USER environment
 USER testuser
 WORKDIR /home/testuser
+ENV USER=testuser
 
 # Initialize user GPG if needed
 RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
@@ -40,5 +50,5 @@ RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
 
 COPY . /home/testuser/omarchy-test
 
-# Run installation with mock systemd
+# Run installation with proper environment
 CMD ["/bin/bash", "-c", "cd /home/testuser && curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash && echo 'Omarchy installation test completed'"]
