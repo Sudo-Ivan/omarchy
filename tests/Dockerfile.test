@@ -71,7 +71,7 @@ RUN echo '#!/bin/bash' > /usr/local/bin/reboot && \
 
 # Create mock /dev/tty to prevent TTY access errors
 RUN mkdir -p /dev && \
-    mknod /dev/tty c 5 0 && \
+    [ ! -e /dev/tty ] && mknod /dev/tty c 5 0 || true && \
     chmod 666 /dev/tty
 
 # Prevent sudoers syntax issues by pre-creating the problematic files
