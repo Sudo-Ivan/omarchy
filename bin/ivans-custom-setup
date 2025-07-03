@@ -42,14 +42,10 @@ echo "Applying Linux hardening measures..."
 
 # Install packages as regular user first
 echo "Installing packages..."
-yay -Sy --noconfirm ${PACKAGES}
+yay -Sy --noconfirm --needed ${PACKAGES}
 
 echo "Installing security packages..."
-yay -Sy --noconfirm ${SECURITY_PACKAGES}
-
-# Install Telegram via flatpak as regular user
-echo "Installing Telegram via Flatpak..."
-flatpak install -y flathub org.telegram.desktop
+yay -Sy --noconfirm --needed ${SECURITY_PACKAGES}
 
 update-desktop-database ~/.local/share/applications || true
 

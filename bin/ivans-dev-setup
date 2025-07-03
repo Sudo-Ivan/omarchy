@@ -2,10 +2,72 @@ yay -S --noconfirm --needed docker docker-compose tabby-bin tmux tailscale xfce4
 
 # Limit log size to avoid running out of disk
 sudo mkdir -p /etc/docker
-echo '{"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"5"}}' | sudo tee /etc/docker/daemon.json
+echo '{"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"5"},"userns-remap":"default"}' | sudo tee /etc/docker/daemon.json
+
+# Configure user namespace isolation for Docker
+echo "Configuring Docker user namespace isolation..."
+sudo tee /etc/subuid > /dev/null << 'EOF'
+dockremap:165536:65536
+EOF
+
+sudo tee /etc/subgid > /dev/null << 'EOF'
+dockremap:165536:65536
+EOF
 
 # Start Docker automatically
 sudo systemctl enable docker
 
 # Give this user privileged Docker access
 sudo usermod -aG docker ${USER}
+
+# Kernel hardening via sysctl
+echo "Configuring kernel security parameters..."
+sudo tee /etc/sysctl.d/99-security.conf > /dev/null << 'EOF'
+# Kernel self-protection
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.printk = 3 3 3 3
+kernel.unprivileged_bpf_disabled = 1
+kernel.sysrq = 0
+kernel.core_uses_pid = 1
+kernel.ctrl-alt-del = 0
+
+# Network security
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_timestamps = 0
+net.ipv4.tcp_max_syn_backlog = 2048
+net.ipv4.tcp_synack_retries = 2
+net.ipv4.tcp_syn_retries = 5
+
+# IPv6 security
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
+net.ipv6.conf.all.forwarding = 0
+net.ipv6.conf.default.forwarding = 0
+
+# User space protection
+vm.mmap_min_addr = 65536
+vm.unprivileged_userfaultfd = 0
+
+# Core dump protection
+kernel.core_pattern = |/bin/false
+EOF
+
+# Apply sysctl changes
+sudo sysctl -p /etc/sysctl.d/99-security.conf
