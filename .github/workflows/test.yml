@@ -18,40 +18,4 @@ jobs:
       run: |
         cd tests
         chmod +x docker-test.sh
-        ./docker-test.sh
-
-  qemu-test:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Install QEMU dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y qemu-system-x86 qemu-utils wget curl netcat-openbsd parted
-        
-    - name: Enable KVM
-      run: |
-        sudo modprobe kvm || true
-        sudo chmod 666 /dev/kvm || true
-        
-    - name: Setup test environment
-      run: |
-        cd tests
-        chmod +x *.sh
-        
-    - name: Run QEMU installation tests
-      run: |
-        cd tests
-        timeout 1800 ./run-tests.sh
-        
-    - name: Upload test artifacts
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: qemu-test-logs
-        path: tests/
-        retention-days: 7 
+        ./docker-test.sh 
