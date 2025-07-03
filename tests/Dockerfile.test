@@ -29,6 +29,12 @@ RUN echo '#!/bin/bash' > /usr/local/bin/ls_battery && \
     echo 'if [[ "$*" == *"BAT"* ]]; then exit 1; else /bin/ls "$@"; fi' >> /usr/local/bin/ls_battery && \
     chmod +x /usr/local/bin/ls_battery
 
+# Create mock powerprofilesctl to prevent power profile failures
+RUN echo '#!/bin/bash' > /usr/local/bin/powerprofilesctl && \
+    echo 'echo "Mock powerprofilesctl: $@"' >> /usr/local/bin/powerprofilesctl && \
+    echo 'exit 0' >> /usr/local/bin/powerprofilesctl && \
+    chmod +x /usr/local/bin/powerprofilesctl
+
 # Prevent sudoers syntax issues by pre-creating the problematic files
 RUN mkdir -p /etc/sudoers.d && \
     echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser && \
