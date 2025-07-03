@@ -7,6 +7,7 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 - Replaced 1Password with KeepassXC.
 - Replaced VLC with MPV.
 - Replaced Chromium with ungoogled-chromium.
+- Added Virtio and VM support (SPICE).
 
 ## Installation
 
