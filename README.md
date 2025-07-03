@@ -2,7 +2,7 @@
 
 This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](https://github.com/dhh)
 
-- Added Chaotic AUR repository.
+- Added Chaotic AUR repository and enabled multilib.
 - Removed CUPS (printer), Signal, Spotify, Dropbox, Zoom and webapps.
 - Replaced 1Password with KeepassXC.
 - Replaced VLC with MPV.
