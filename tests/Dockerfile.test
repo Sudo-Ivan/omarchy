@@ -16,7 +16,6 @@ RUN useradd -m -G wheel testuser && \
 USER testuser
 WORKDIR /home/testuser
 
-# Initialize user GPG if needed
 RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
     echo "Key-Type: RSA" >> /tmp/gpg-batch && \
     echo "Key-Length: 2048" >> /tmp/gpg-batch && \
