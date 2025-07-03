@@ -1,8 +1,15 @@
 #! /bin/bash
 
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root (use sudo)"
+# Check if running as root and exit if so
+if [[ $EUID -eq 0 ]]; then
+   echo "This script should NOT be run as root. Please run as a regular user."
+   exit 1
+fi
+
+# Check if user is in wheel group
+if ! groups | grep -q wheel; then
+   echo "User must be in the wheel group to run this script."
+   echo "Add user to wheel group: sudo usermod -aG wheel $USER"
    exit 1
 fi
 
@@ -28,14 +35,30 @@ SERVICES="libvirtd wazuh-agent tailscaled"
 # Security services to enable
 SECURITY_SERVICES="auditd"
 
-# Get the actual user (not root)
-ACTUAL_USER=${SUDO_USER:-$USER}
+# Get the current user
+CURRENT_USER=$USER
 
 echo "Applying Linux hardening measures..."
 
+# Install packages as regular user first
+echo "Installing packages..."
+yay -Sy --noconfirm ${PACKAGES}
+
+echo "Installing security packages..."
+yay -Sy --noconfirm ${SECURITY_PACKAGES}
+
+# Install Telegram via flatpak as regular user
+echo "Installing Telegram via Flatpak..."
+flatpak install -y flathub org.telegram.desktop
+
+update-desktop-database ~/.local/share/applications || true
+
+# Now elevate privileges for system-wide changes
+echo "Elevating privileges for system-wide configuration..."
+
 # Kernel hardening via sysctl
 echo "Configuring kernel security parameters..."
-cat > /etc/sysctl.d/99-security.conf << 'EOF'
+sudo tee /etc/sysctl.d/99-security.conf > /dev/null << 'EOF'
 # Kernel self-protection
 kernel.kptr_restrict = 2
 kernel.dmesg_restrict = 1
@@ -83,11 +106,11 @@ kernel.core_pattern = |/bin/false
 EOF
 
 # Apply sysctl changes
-sysctl -p /etc/sysctl.d/99-security.conf
+sudo sysctl -p /etc/sysctl.d/99-security.conf
 
 # Configure audit rules
 echo "Configuring audit rules..."
-cat > /etc/audit/rules.d/99-security.rules << 'EOF'
+sudo tee /etc/audit/rules.d/99-security.rules > /dev/null << 'EOF'
 # Monitor systemd service changes
 -w /etc/systemd/system/ -p wa -k systemd
 -w /lib/systemd/system/ -p wa -k systemd
@@ -117,8 +140,8 @@ EOF
 
 # Configure core dump settings
 echo "Configuring core dump settings..."
-echo '* hard core 0' >> /etc/security/limits.conf
-echo '* soft core 0' >> /etc/security/limits.conf
+echo '* hard core 0' | sudo tee -a /etc/security/limits.conf > /dev/null
+echo '* soft core 0' | sudo tee -a /etc/security/limits.conf > /dev/null
 
 # Spoof machine ID for privacy
 echo "Spoofing machine ID for privacy..."
@@ -126,25 +149,25 @@ GENERIC_MACHINE_ID="b08dfa6083e7567a1921a715000001fb"
 
 # Replace /etc/machine-id
 if [ -f /etc/machine-id ]; then
-    echo "${GENERIC_MACHINE_ID}" > /etc/machine-id
+    echo "${GENERIC_MACHINE_ID}" | sudo tee /etc/machine-id > /dev/null
     echo "Updated /etc/machine-id with generic ID"
 fi
 
 # Replace /var/lib/dbus/machine-id
 if [ -f /var/lib/dbus/machine-id ]; then
-    echo "${GENERIC_MACHINE_ID}" > /var/lib/dbus/machine-id
+    echo "${GENERIC_MACHINE_ID}" | sudo tee /var/lib/dbus/machine-id > /dev/null
     echo "Updated /var/lib/dbus/machine-id with generic ID"
 fi
 
 # Make machine-id immutable to prevent changes
-chattr +i /etc/machine-id 2>/dev/null || true
-chattr +i /var/lib/dbus/machine-id 2>/dev/null || true
+sudo chattr +i /etc/machine-id 2>/dev/null || true
+sudo chattr +i /var/lib/dbus/machine-id 2>/dev/null || true
 
 # Configure SSH security
 echo "Configuring SSH security..."
 if [ -f /etc/ssh/sshd_config ]; then
-    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
-    cat >> /etc/ssh/sshd_config << 'EOF'
+    sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
+    sudo tee -a /etc/ssh/sshd_config > /dev/null << 'EOF'
 
 # Security hardening
 PermitRootLogin no
@@ -162,26 +185,26 @@ fi
 
 # Disable NTP and configure time synchronization
 echo "Disabling NTP and configuring secure time synchronization..."
-systemctl disable systemd-timesyncd.service 2>/dev/null || true
-systemctl stop systemd-timesyncd.service 2>/dev/null || true
+sudo systemctl disable systemd-timesyncd.service 2>/dev/null || true
+sudo systemctl stop systemd-timesyncd.service 2>/dev/null || true
 
 # Disable chronyd if present
-systemctl disable chronyd.service 2>/dev/null || true
-systemctl stop chronyd.service 2>/dev/null || true
+sudo systemctl disable chronyd.service 2>/dev/null || true
+sudo systemctl stop chronyd.service 2>/dev/null || true
 
 # Disable ntpd if present
-systemctl disable ntpd.service 2>/dev/null || true
-systemctl stop ntpd.service 2>/dev/null || true
+sudo systemctl disable ntpd.service 2>/dev/null || true
+sudo systemctl stop ntpd.service 2>/dev/null || true
 
 # Configure systemd to not use NTP
-timedatectl set-ntp false 2>/dev/null || true
+sudo timedatectl set-ntp false 2>/dev/null || true
 
 # Copy time sync script to system
-cp "$(dirname "$0")/time-sync" /usr/local/bin/time-sync
-chmod +x /usr/local/bin/time-sync
+sudo cp "$(dirname "$0")/time-sync" /usr/local/bin/time-sync
+sudo chmod +x /usr/local/bin/time-sync
 
 # Create systemd service for periodic time sync
-cat > /etc/systemd/system/secure-time-sync.service << 'EOF'
+sudo tee /etc/systemd/system/secure-time-sync.service > /dev/null << 'EOF'
 [Unit]
 Description=Secure Time Synchronization via HTTPS
 After=network-online.target
@@ -199,7 +222,7 @@ WantedBy=multi-user.target
 EOF
 
 # Create timer for periodic execution
-cat > /etc/systemd/system/secure-time-sync.timer << 'EOF'
+sudo tee /etc/systemd/system/secure-time-sync.timer > /dev/null << 'EOF'
 [Unit]
 Description=Run secure time sync every 6 hours
 Requires=secure-time-sync.service
@@ -214,16 +237,16 @@ WantedBy=timers.target
 EOF
 
 # Enable the timer
-systemctl enable secure-time-sync.timer
-systemctl start secure-time-sync.timer
+sudo systemctl enable secure-time-sync.timer
+sudo systemctl start secure-time-sync.timer
 
 echo "NTP disabled and secure time synchronization configured"
 echo "Time sync will run every 6 hours via HTTPS to trusted sources"
 
 echo "Configuring ungoogled-chromium default search engine (system-wide policy)..."
 
-mkdir -p "${CHROMIUM_POLICIES_DIR}"
-tee "${CHROMIUM_POLICIES_DIR}/search_engine.json" >/dev/null <<EOF
+sudo mkdir -p "${CHROMIUM_POLICIES_DIR}"
+sudo tee "${CHROMIUM_POLICIES_DIR}/search_engine.json" >/dev/null <<EOF
 {
   "DefaultSearchProviderEnabled": true,
   "DefaultSearchProviderName": "SearXNG",
@@ -236,42 +259,36 @@ EOF
 
 echo "ungoogled-chromium system policy set: Quad4 SearXNG is now the default search engine" 
 
-echo "Installing packages..."
-yay -Sy --noconfirm ${PACKAGES}
-
-echo "Installing security packages..."
-yay -Sy --noconfirm ${SECURITY_PACKAGES}
-
 # Configure doas and replace sudo
 echo "Configuring doas and replacing sudo..."
-cat > /etc/doas.conf << EOF
+sudo tee /etc/doas.conf > /dev/null << EOF
 # Allow members of wheel group to execute any command
 permit persist :wheel
 
 # Allow specific user to execute any command
-permit persist ${ACTUAL_USER}
+permit persist ${CURRENT_USER}
 
 # Deny root login
 deny root
 EOF
 
 # Set proper permissions on doas.conf
-chmod 600 /etc/doas.conf
+sudo chmod 600 /etc/doas.conf
 
 # Create sudo compatibility wrapper
-cat > /usr/local/bin/sudo << 'EOF'
+sudo tee /usr/local/bin/sudo > /dev/null << 'EOF'
 #!/bin/bash
 # sudo compatibility wrapper for doas
 exec doas "$@"
 EOF
 
-chmod +x /usr/local/bin/sudo
+sudo chmod +x /usr/local/bin/sudo
 
 # Create symbolic link as backup
-ln -sf /usr/local/bin/sudo /usr/bin/sudo-doas
+sudo ln -sf /usr/local/bin/sudo /usr/bin/sudo-doas
 
 # Test doas configuration
-if doas -u ${ACTUAL_USER} echo "doas test successful" >/dev/null 2>&1; then
+if doas -u ${CURRENT_USER} echo "doas test successful" >/dev/null 2>&1; then
     echo "doas configuration test passed"
     
     # Remove sudo package
@@ -280,7 +297,7 @@ if doas -u ${ACTUAL_USER} echo "doas test successful" >/dev/null 2>&1; then
     
     # Ensure our wrapper is in place
     if [ ! -f /usr/bin/sudo ]; then
-        ln -sf /usr/local/bin/sudo /usr/bin/sudo
+        sudo ln -sf /usr/local/bin/sudo /usr/bin/sudo
         echo "Created sudo compatibility symlink"
     fi
     
@@ -288,25 +305,25 @@ if doas -u ${ACTUAL_USER} echo "doas test successful" >/dev/null 2>&1; then
     
     # Add sudo alias to bashrc for user convenience
     echo "Adding sudo alias to bashrc..."
-    if [ -f "/home/${ACTUAL_USER}/.bashrc" ]; then
-        if ! grep -q "alias sudo=" "/home/${ACTUAL_USER}/.bashrc"; then
-            echo "" >> "/home/${ACTUAL_USER}/.bashrc"
-            echo "# doas compatibility alias" >> "/home/${ACTUAL_USER}/.bashrc"
-            echo "alias sudo='doas'" >> "/home/${ACTUAL_USER}/.bashrc"
+    if [ -f "/home/${CURRENT_USER}/.bashrc" ]; then
+        if ! grep -q "alias sudo=" "/home/${CURRENT_USER}/.bashrc"; then
+            echo "" >> "/home/${CURRENT_USER}/.bashrc"
+            echo "# doas compatibility alias" >> "/home/${CURRENT_USER}/.bashrc"
+            echo "alias sudo='doas'" >> "/home/${CURRENT_USER}/.bashrc"
             echo "Added sudo alias to user's bashrc"
         else
             echo "sudo alias already exists in bashrc"
         fi
     else
-        echo "Warning: ~/.bashrc not found for user ${ACTUAL_USER}"
+        echo "Warning: ~/.bashrc not found for user ${CURRENT_USER}"
     fi
     
     # Also add to system-wide bashrc if it exists
     if [ -f "/etc/bash.bashrc" ]; then
         if ! grep -q "alias sudo=" "/etc/bash.bashrc"; then
-            echo "" >> "/etc/bash.bashrc"
-            echo "# doas compatibility alias" >> "/etc/bash.bashrc"
-            echo "alias sudo='doas'" >> "/etc/bash.bashrc"
+            echo "" | sudo tee -a /etc/bash.bashrc > /dev/null
+            echo "# doas compatibility alias" | sudo tee -a /etc/bash.bashrc > /dev/null
+            echo "alias sudo='doas'" | sudo tee -a /etc/bash.bashrc > /dev/null
             echo "Added sudo alias to system-wide bashrc"
         else
             echo "sudo alias already exists in system bashrc"
@@ -315,15 +332,13 @@ if doas -u ${ACTUAL_USER} echo "doas test successful" >/dev/null 2>&1; then
     
 else
     echo "ERROR: doas configuration test failed, keeping sudo"
-    rm -f /usr/local/bin/sudo /usr/bin/sudo-doas
+    sudo rm -f /usr/local/bin/sudo /usr/bin/sudo-doas
 fi
-
-
 
 echo "Adding user to libvirt groups..."
 for group in ${LIBVIRT_GROUPS}; do
   if getent group ${group} >/dev/null 2>&1; then
-    usermod -aG ${group} ${ACTUAL_USER}
+    sudo usermod -aG ${group} ${CURRENT_USER}
     echo "Added user to group: ${group}"
   else
     echo "Warning: group ${group} does not exist"
@@ -333,7 +348,7 @@ done
 echo "Enabling services..."
 for service in ${SERVICES}; do
   if systemctl list-unit-files | grep -q "^${service}\.service"; then
-    systemctl enable --now ${service}
+    sudo systemctl enable --now ${service}
     echo "Enabled service: ${service}"
   else
     echo "Warning: service ${service} does not exist"
@@ -343,7 +358,7 @@ done
 echo "Enabling security services..."
 for service in ${SECURITY_SERVICES}; do
   if systemctl list-unit-files | grep -q "^${service}\.service"; then
-    systemctl enable --now ${service}
+    sudo systemctl enable --now ${service}
     echo "Enabled security service: ${service}"
   else
     echo "Warning: security service ${service} does not exist"
@@ -354,7 +369,7 @@ done
 read -p "Enter Wazuh manager IP address: " MANAGER_IP
 if [ -n "$MANAGER_IP" ]; then
   if [ -f "/var/ossec/etc/ossec.conf" ]; then
-    sed -i "s/<address>MANAGER_IP<\/address>/<address>${MANAGER_IP}<\/address>/g" /var/ossec/etc/ossec.conf
+    sudo sed -i "s/<address>MANAGER_IP<\/address>/<address>${MANAGER_IP}<\/address>/g" /var/ossec/etc/ossec.conf
     echo "Wazuh manager IP configured as: ${MANAGER_IP}"
   else
     echo "Warning: Wazuh config file not found. Please configure manually after installation."
@@ -365,11 +380,6 @@ fi
 
 # Install tailscale
 echo "Tailscale installed and enabled, run 'tailscale up' to connect to your network"
-
-# Install Telegram via flatpak
-sudo -u ${ACTUAL_USER} flatpak install -y flathub org.telegram.desktop
-
-sudo -u ${ACTUAL_USER} update-desktop-database ~/.local/share/applications || true
 
 echo "Linux hardening complete. Please reboot the system to apply all changes."
 echo
