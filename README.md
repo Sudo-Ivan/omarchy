@@ -36,8 +36,11 @@ This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](
 
 ## WIP
 
-- [ ] Runit support (Artix)
-- [ ] Xlibre
+- Runit support (Artix)
+- Xlibre
+- USBGuard
+- MAC Address Randomizer Script (Ethernet/Wifi)
+- Disable Wifi Script
 
 ## Installation
 
