@@ -7,5 +7,5 @@ if ls /sys/class/power_supply/BAT* &>/dev/null; then
   powerprofilesctl set balanced
 else
   # This computer runs on power outlet
-  powerprofilesctl set performance
+  powerprofilesctl set performance || powerprofilesctl set balanced
 fi
