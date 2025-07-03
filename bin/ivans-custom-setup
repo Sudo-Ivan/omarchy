@@ -1,0 +1,381 @@
+#! /bin/bash
+
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root (use sudo)"
+   exit 1
+fi
+
+# Configuration variables
+SEARXNG_URL="https://searxng.quad4.io"
+SEARXNG_SEARCH_URL="${SEARXNG_URL}/search?q={searchTerms}"
+SEARXNG_SUGGEST_URL="${SEARXNG_URL}/autocompleter?q={searchTerms}"
+SEARXNG_ICON_URL="${SEARXNG_URL}/static/themes/simple/img/favicon.png"
+CHROMIUM_POLICIES_DIR="/etc/chromium/policies/managed"
+
+# Packages to install
+PACKAGES="virt-manager qemu-full wazuh-agent tailscale lynis yara"
+
+# Security packages to install
+SECURITY_PACKAGES="audit opendoas"
+
+# User groups to add
+LIBVIRT_GROUPS="libvirt libvirt-qemu"
+
+# Services to enable
+SERVICES="libvirtd wazuh-agent tailscaled"
+
+# Security services to enable
+SECURITY_SERVICES="auditd"
+
+# Get the actual user (not root)
+ACTUAL_USER=${SUDO_USER:-$USER}
+
+echo "Applying Linux hardening measures..."
+
+# Kernel hardening via sysctl
+echo "Configuring kernel security parameters..."
+cat > /etc/sysctl.d/99-security.conf << 'EOF'
+# Kernel self-protection
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.printk = 3 3 3 3
+kernel.unprivileged_bpf_disabled = 1
+kernel.sysrq = 0
+kernel.core_uses_pid = 1
+kernel.ctrl-alt-del = 0
+
+# Network security
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_timestamps = 0
+net.ipv4.tcp_max_syn_backlog = 2048
+net.ipv4.tcp_synack_retries = 2
+net.ipv4.tcp_syn_retries = 5
+
+# IPv6 security
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
+net.ipv6.conf.all.forwarding = 0
+net.ipv6.conf.default.forwarding = 0
+
+# User space protection
+vm.mmap_min_addr = 65536
+vm.unprivileged_userfaultfd = 0
+
+# Core dump protection
+kernel.core_pattern = |/bin/false
+EOF
+
+# Apply sysctl changes
+sysctl -p /etc/sysctl.d/99-security.conf
+
+# Configure audit rules
+echo "Configuring audit rules..."
+cat > /etc/audit/rules.d/99-security.rules << 'EOF'
+# Monitor systemd service changes
+-w /etc/systemd/system/ -p wa -k systemd
+-w /lib/systemd/system/ -p wa -k systemd
+-w /usr/lib/systemd/system/ -p wa -k systemd
+
+# Monitor kernel module loading
+-w /sbin/insmod -p x -k modules
+-w /sbin/rmmod -p x -k modules
+-w /sbin/modprobe -p x -k modules
+
+# Monitor file system mounts
+-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k export
+
+# Monitor file deletions
+-a always,exit -F arch=b64 -S unlink -S unlinkat -F auid>=1000 -F auid!=4294967295 -k delete
+
+# Monitor privilege escalation
+-w /etc/sudoers -p wa -k scope
+-w /etc/sudoers.d/ -p wa -k scope
+
+# Monitor user/group changes
+-w /etc/group -p wa -k identity
+-w /etc/passwd -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /etc/shadow -p wa -k identity
+EOF
+
+# Configure core dump settings
+echo "Configuring core dump settings..."
+echo '* hard core 0' >> /etc/security/limits.conf
+echo '* soft core 0' >> /etc/security/limits.conf
+
+# Spoof machine ID for privacy
+echo "Spoofing machine ID for privacy..."
+GENERIC_MACHINE_ID="b08dfa6083e7567a1921a715000001fb"
+
+# Replace /etc/machine-id
+if [ -f /etc/machine-id ]; then
+    echo "${GENERIC_MACHINE_ID}" > /etc/machine-id
+    echo "Updated /etc/machine-id with generic ID"
+fi
+
+# Replace /var/lib/dbus/machine-id
+if [ -f /var/lib/dbus/machine-id ]; then
+    echo "${GENERIC_MACHINE_ID}" > /var/lib/dbus/machine-id
+    echo "Updated /var/lib/dbus/machine-id with generic ID"
+fi
+
+# Make machine-id immutable to prevent changes
+chattr +i /etc/machine-id 2>/dev/null || true
+chattr +i /var/lib/dbus/machine-id 2>/dev/null || true
+
+# Configure SSH security
+echo "Configuring SSH security..."
+if [ -f /etc/ssh/sshd_config ]; then
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
+    cat >> /etc/ssh/sshd_config << 'EOF'
+
+# Security hardening
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+X11Forwarding no
+AllowTcpForwarding no
+GatewayPorts no
+PermitTunnel no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2
+EOF
+fi
+
+# Disable NTP and configure time synchronization
+echo "Disabling NTP and configuring secure time synchronization..."
+systemctl disable systemd-timesyncd.service 2>/dev/null || true
+systemctl stop systemd-timesyncd.service 2>/dev/null || true
+
+# Disable chronyd if present
+systemctl disable chronyd.service 2>/dev/null || true
+systemctl stop chronyd.service 2>/dev/null || true
+
+# Disable ntpd if present
+systemctl disable ntpd.service 2>/dev/null || true
+systemctl stop ntpd.service 2>/dev/null || true
+
+# Configure systemd to not use NTP
+timedatectl set-ntp false 2>/dev/null || true
+
+# Copy time sync script to system
+cp "$(dirname "$0")/time-sync" /usr/local/bin/time-sync
+chmod +x /usr/local/bin/time-sync
+
+# Create systemd service for periodic time sync
+cat > /etc/systemd/system/secure-time-sync.service << 'EOF'
+[Unit]
+Description=Secure Time Synchronization via HTTPS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/time-sync sync
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Create timer for periodic execution
+cat > /etc/systemd/system/secure-time-sync.timer << 'EOF'
+[Unit]
+Description=Run secure time sync every 6 hours
+Requires=secure-time-sync.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=6h
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# Enable the timer
+systemctl enable secure-time-sync.timer
+systemctl start secure-time-sync.timer
+
+echo "NTP disabled and secure time synchronization configured"
+echo "Time sync will run every 6 hours via HTTPS to trusted sources"
+
+echo "Configuring ungoogled-chromium default search engine (system-wide policy)..."
+
+mkdir -p "${CHROMIUM_POLICIES_DIR}"
+tee "${CHROMIUM_POLICIES_DIR}/search_engine.json" >/dev/null <<EOF
+{
+  "DefaultSearchProviderEnabled": true,
+  "DefaultSearchProviderName": "SearXNG",
+  "DefaultSearchProviderKeyword": "searxng",
+  "DefaultSearchProviderSearchURL": "${SEARXNG_SEARCH_URL}",
+  "DefaultSearchProviderSuggestURL": "${SEARXNG_SUGGEST_URL}",
+  "DefaultSearchProviderIconURL": "${SEARXNG_ICON_URL}"
+}
+EOF
+
+echo "ungoogled-chromium system policy set: Quad4 SearXNG is now the default search engine" 
+
+echo "Installing packages..."
+yay -Sy --noconfirm ${PACKAGES}
+
+echo "Installing security packages..."
+yay -Sy --noconfirm ${SECURITY_PACKAGES}
+
+# Configure doas and replace sudo
+echo "Configuring doas and replacing sudo..."
+cat > /etc/doas.conf << EOF
+# Allow members of wheel group to execute any command
+permit persist :wheel
+
+# Allow specific user to execute any command
+permit persist ${ACTUAL_USER}
+
+# Deny root login
+deny root
+EOF
+
+# Set proper permissions on doas.conf
+chmod 600 /etc/doas.conf
+
+# Create sudo compatibility wrapper
+cat > /usr/local/bin/sudo << 'EOF'
+#!/bin/bash
+# sudo compatibility wrapper for doas
+exec doas "$@"
+EOF
+
+chmod +x /usr/local/bin/sudo
+
+# Create symbolic link as backup
+ln -sf /usr/local/bin/sudo /usr/bin/sudo-doas
+
+# Test doas configuration
+if doas -u ${ACTUAL_USER} echo "doas test successful" >/dev/null 2>&1; then
+    echo "doas configuration test passed"
+    
+    # Remove sudo package
+    echo "Removing sudo package..."
+    yay -Rns --noconfirm sudo 2>/dev/null || echo "sudo package not found or already removed"
+    
+    # Ensure our wrapper is in place
+    if [ ! -f /usr/bin/sudo ]; then
+        ln -sf /usr/local/bin/sudo /usr/bin/sudo
+        echo "Created sudo compatibility symlink"
+    fi
+    
+    echo "Successfully replaced sudo with doas"
+    
+    # Add sudo alias to bashrc for user convenience
+    echo "Adding sudo alias to bashrc..."
+    if [ -f "/home/${ACTUAL_USER}/.bashrc" ]; then
+        if ! grep -q "alias sudo=" "/home/${ACTUAL_USER}/.bashrc"; then
+            echo "" >> "/home/${ACTUAL_USER}/.bashrc"
+            echo "# doas compatibility alias" >> "/home/${ACTUAL_USER}/.bashrc"
+            echo "alias sudo='doas'" >> "/home/${ACTUAL_USER}/.bashrc"
+            echo "Added sudo alias to user's bashrc"
+        else
+            echo "sudo alias already exists in bashrc"
+        fi
+    else
+        echo "Warning: ~/.bashrc not found for user ${ACTUAL_USER}"
+    fi
+    
+    # Also add to system-wide bashrc if it exists
+    if [ -f "/etc/bash.bashrc" ]; then
+        if ! grep -q "alias sudo=" "/etc/bash.bashrc"; then
+            echo "" >> "/etc/bash.bashrc"
+            echo "# doas compatibility alias" >> "/etc/bash.bashrc"
+            echo "alias sudo='doas'" >> "/etc/bash.bashrc"
+            echo "Added sudo alias to system-wide bashrc"
+        else
+            echo "sudo alias already exists in system bashrc"
+        fi
+    fi
+    
+else
+    echo "ERROR: doas configuration test failed, keeping sudo"
+    rm -f /usr/local/bin/sudo /usr/bin/sudo-doas
+fi
+
+
+
+echo "Adding user to libvirt groups..."
+for group in ${LIBVIRT_GROUPS}; do
+  if getent group ${group} >/dev/null 2>&1; then
+    usermod -aG ${group} ${ACTUAL_USER}
+    echo "Added user to group: ${group}"
+  else
+    echo "Warning: group ${group} does not exist"
+  fi
+done
+
+echo "Enabling services..."
+for service in ${SERVICES}; do
+  if systemctl list-unit-files | grep -q "^${service}\.service"; then
+    systemctl enable --now ${service}
+    echo "Enabled service: ${service}"
+  else
+    echo "Warning: service ${service} does not exist"
+  fi
+done
+
+echo "Enabling security services..."
+for service in ${SECURITY_SERVICES}; do
+  if systemctl list-unit-files | grep -q "^${service}\.service"; then
+    systemctl enable --now ${service}
+    echo "Enabled security service: ${service}"
+  else
+    echo "Warning: security service ${service} does not exist"
+  fi
+done
+
+# Configure Wazuh agent with manager IP
+read -p "Enter Wazuh manager IP address: " MANAGER_IP
+if [ -n "$MANAGER_IP" ]; then
+  if [ -f "/var/ossec/etc/ossec.conf" ]; then
+    sed -i "s/<address>MANAGER_IP<\/address>/<address>${MANAGER_IP}<\/address>/g" /var/ossec/etc/ossec.conf
+    echo "Wazuh manager IP configured as: ${MANAGER_IP}"
+  else
+    echo "Warning: Wazuh config file not found. Please configure manually after installation."
+  fi
+else
+  echo "Skipping Wazuh manager IP configuration"
+fi
+
+# Install tailscale
+echo "Tailscale installed and enabled, run 'tailscale up' to connect to your network"
+
+# Install Telegram via flatpak
+sudo -u ${ACTUAL_USER} flatpak install -y flathub org.telegram.desktop
+
+sudo -u ${ACTUAL_USER} update-desktop-database ~/.local/share/applications || true
+
+echo "Linux hardening complete. Please reboot the system to apply all changes."
+echo
+echo "IMPORTANT: sudo has been replaced with doas."
+echo "- Use 'doas' instead of 'sudo' for administrative commands"
+echo "- A compatibility wrapper is installed at /usr/local/bin/sudo"
+echo "- Bash alias 'sudo=doas' added to ~/.bashrc and /etc/bash.bashrc"
+echo "- Configuration file: /etc/doas.conf"
+
