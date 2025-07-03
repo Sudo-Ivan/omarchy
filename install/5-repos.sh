@@ -24,7 +24,15 @@ else
     echo "Chaotic AUR repository already configured in pacman.conf"
 fi
 
+echo "Enabling multilib repository..."
+if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
+    sudo sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' /etc/pacman.conf
+    echo "Multilib repository enabled in pacman.conf"
+else
+    echo "Multilib repository already enabled in pacman.conf"
+fi
+
 echo "Updating repositories..."
 sudo pacman -Syy
 
-echo "Chaotic AUR repository configured successfully!" 
+echo "Chaotic AUR repository and multilib configured successfully!" 
