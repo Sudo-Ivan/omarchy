@@ -6,16 +6,26 @@ RUN pacman-key --init && \
     pacman -Syu --noconfirm && \
     pacman -S --noconfirm git curl wget base-devel sudo haveged
 
-# Start entropy daemon for GPG operations
-RUN systemctl enable haveged || true
-
 # Create test user
 RUN useradd -m -G wheel testuser && \
     echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+# Create mock systemctl to prevent failures
+RUN echo '#!/bin/bash' > /usr/local/bin/systemctl && \
+    echo 'echo "Mock systemctl: $@"' >> /usr/local/bin/systemctl && \
+    echo 'exit 0' >> /usr/local/bin/systemctl && \
+    chmod +x /usr/local/bin/systemctl && \
+    ln -sf /usr/local/bin/systemctl /usr/bin/systemctl
+
+# Prevent sudoers syntax issues
+RUN mkdir -p /etc/sudoers.d && \
+    echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser
+
+# Switch to testuser
 USER testuser
 WORKDIR /home/testuser
 
+# Initialize user GPG if needed
 RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
     echo "Key-Type: RSA" >> /tmp/gpg-batch && \
     echo "Key-Length: 2048" >> /tmp/gpg-batch && \
@@ -30,4 +40,5 @@ RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
 
 COPY . /home/testuser/omarchy-test
 
+# Run installation with mock systemd
 CMD ["/bin/bash", "-c", "cd /home/testuser && curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash && echo 'Omarchy installation test completed'"]
