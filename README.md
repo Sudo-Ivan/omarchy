@@ -48,6 +48,12 @@ This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](
 curl -L https://zp.q4dd.com/s/om | bash
 ```
 
+or without link shortening
+
+```bash
+curl -L https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash
+```
+
 ## License
 
 [MIT License](https://opensource.org/licenses/MIT)
