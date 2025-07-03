@@ -24,6 +24,13 @@ RUN echo '#!/bin/bash' > /usr/local/bin/usermod && \
     chmod +x /usr/local/bin/usermod && \
     ln -sf /usr/local/bin/usermod /usr/bin/usermod
 
+# Create mock powerprofilesctl to prevent power management failures
+RUN echo '#!/bin/bash' > /usr/local/bin/powerprofilesctl && \
+    echo 'echo "Mock powerprofilesctl: $@"' >> /usr/local/bin/powerprofilesctl && \
+    echo 'exit 0' >> /usr/local/bin/powerprofilesctl && \
+    chmod +x /usr/local/bin/powerprofilesctl && \
+    ln -sf /usr/local/bin/powerprofilesctl /usr/bin/powerprofilesctl
+
 # Prevent sudoers syntax issues by pre-creating the problematic files
 RUN mkdir -p /etc/sudoers.d && \
     echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser && \
