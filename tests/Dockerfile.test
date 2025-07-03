@@ -17,17 +17,17 @@ USER testuser
 WORKDIR /home/testuser
 
 # Initialize user GPG if needed
-RUN gpg --batch --gen-key << 'GPGEOF'
-%echo Generating test key
-Key-Type: RSA
-Key-Length: 2048
-Name-Real: Test User
-Name-Email: test@example.com
-Expire-Date: 0
-%no-protection
-%commit
-%echo done
-GPGEOF
+RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
+    echo "Key-Type: RSA" >> /tmp/gpg-batch && \
+    echo "Key-Length: 2048" >> /tmp/gpg-batch && \
+    echo "Name-Real: Test User" >> /tmp/gpg-batch && \
+    echo "Name-Email: test@example.com" >> /tmp/gpg-batch && \
+    echo "Expire-Date: 0" >> /tmp/gpg-batch && \
+    echo "%no-protection" >> /tmp/gpg-batch && \
+    echo "%commit" >> /tmp/gpg-batch && \
+    echo "%echo done" >> /tmp/gpg-batch && \
+    gpg --batch --gen-key /tmp/gpg-batch && \
+    rm /tmp/gpg-batch
 
 COPY . /home/testuser/omarchy-test
 
