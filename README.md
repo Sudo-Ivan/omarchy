@@ -1,6 +1,6 @@
 # Omarchy - Ivans Custom Fork Edition
 
-This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](https://github.com/dhh)
+This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](https://github.com/dhh)
 
 - Added Chaotic AUR repository and enabled multilib.
 - Removed CUPS (printer), Signal, Spotify, Dropbox, Zoom and webapps.
@@ -13,6 +13,7 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 - Rank mirrors first using reflector for fast package download speeds.
 - Added Flatpak.
 - Install and enable OpenSnitch firewall.
+- Test using Docker or Github Actions
 
 ## Optional Configuration Scripts
 
@@ -34,8 +35,8 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 
 ## WIP
 
-- [ ] CI Tests via Docker. 
 - [ ] Runit support (Artix)
+- [ ] Xlibre + DWM
 
 ## Installation
 
