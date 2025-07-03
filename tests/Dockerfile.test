@@ -24,12 +24,10 @@ RUN echo '#!/bin/bash' > /usr/local/bin/usermod && \
     chmod +x /usr/local/bin/usermod && \
     ln -sf /usr/local/bin/usermod /usr/bin/usermod
 
-# Create mock powerprofilesctl to prevent power management failures
-RUN echo '#!/bin/bash' > /usr/local/bin/powerprofilesctl && \
-    echo 'echo "Mock powerprofilesctl: $@"' >> /usr/local/bin/powerprofilesctl && \
-    echo 'exit 0' >> /usr/local/bin/powerprofilesctl && \
-    chmod +x /usr/local/bin/powerprofilesctl && \
-    ln -sf /usr/local/bin/powerprofilesctl /usr/bin/powerprofilesctl
+# Create mock ls for power supply check that returns no battery
+RUN echo '#!/bin/bash' > /usr/local/bin/ls_battery && \
+    echo 'if [[ "$*" == *"BAT"* ]]; then exit 1; else /bin/ls "$@"; fi' >> /usr/local/bin/ls_battery && \
+    chmod +x /usr/local/bin/ls_battery
 
 # Prevent sudoers syntax issues by pre-creating the problematic files
 RUN mkdir -p /etc/sudoers.d && \
@@ -57,5 +55,5 @@ RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
 
 COPY . /home/testuser/omarchy-test
 
-# Run installation with proper environment
-CMD ["/bin/bash", "-c", "cd /home/testuser && curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash && echo 'Omarchy installation test completed'"]
+# Run installation with proper environment and mock commands
+CMD ["/bin/bash", "-c", "export PATH=/usr/local/bin:$PATH && cd /home/testuser && curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash && echo 'Omarchy installation test completed'"]
