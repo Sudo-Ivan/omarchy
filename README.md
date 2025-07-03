@@ -19,9 +19,23 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 - `bin/ivans-custom-setup` - My custom post-setup script. 
 - `bin/time-sync` - Time synchronization script using HTTPS to trusted sources.
 
+### Ivans Custom Setup
+
+- Replace `sudo` with `doas`.
+- Install, enable and setup Wazuh agent.
+- Install auditd, yara and lynis.
+- Slight kernel hardening.
+- Use HTTPS for time synchronization and disable NTP.
+- Spoof machine-id.
+- Install flatpaks 
+- Set Search Engine to Quad4 SearXNG for ungoogled-chromium (via organization policy)
+- Install virt-manager and qemu-full
+- Install and enable Tailscale.
+
 ## WIP
 
 - [ ] CI Tests via Docker. 
+- [ ] Runit support (Artix)
 
 ## Installation
 
