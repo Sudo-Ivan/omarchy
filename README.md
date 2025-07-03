@@ -14,6 +14,7 @@ This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](
 - Added Flatpak.
 - Install and enable OpenSnitch firewall.
 - Test using Docker or Github Actions
+- Remove docker from base installation and to bin/ivans-dev-setup
 
 ## Optional Configuration Scripts
 
@@ -36,7 +37,7 @@ This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](
 ## WIP
 
 - [ ] Runit support (Artix)
-- [ ] Xlibre + DWM
+- [ ] Xlibre
 
 ## Installation
 
