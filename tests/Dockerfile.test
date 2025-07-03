@@ -69,6 +69,11 @@ RUN echo '#!/bin/bash' > /usr/local/bin/reboot && \
     chmod +x /usr/local/bin/reboot && \
     ln -sf /usr/local/bin/reboot /usr/bin/reboot
 
+# Create mock /dev/tty to prevent TTY access errors
+RUN mkdir -p /dev && \
+    mknod /dev/tty c 5 0 && \
+    chmod 666 /dev/tty
+
 # Prevent sudoers syntax issues by pre-creating the problematic files
 RUN mkdir -p /etc/sudoers.d && \
     echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser && \
