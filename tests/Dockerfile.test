@@ -4,7 +4,7 @@ FROM archlinux:latest
 RUN pacman-key --init && \
     pacman-key --populate archlinux && \
     pacman -Syu --noconfirm && \
-    pacman -S --noconfirm git curl wget base-devel sudo haveged dbus
+    pacman -S --noconfirm git curl wget base-devel sudo haveged dbus unzip
 
 # Enable multilib repository for 32-bit libraries
 RUN sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf && \
