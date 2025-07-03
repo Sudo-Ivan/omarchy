@@ -11,6 +11,8 @@ This is a custom fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH]
 - Added FIDO2 support.
 - Added FUSE2 support (some AppImages depend on it).
 - Rank mirrors first using reflector for fast package download speeds.
+- Install Flatpak support.
+- Install and enable OpenSnitch firewall.
 
 ## WIP
 
