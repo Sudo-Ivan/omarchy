@@ -1,3 +1,5 @@
+update-desktop-database ~/.local/share/applications || true
+
 # Open all images with imv
 xdg-mime default imv.desktop image/png
 xdg-mime default imv.desktop image/jpeg
