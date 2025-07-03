@@ -69,6 +69,50 @@ RUN echo '#!/bin/bash' > /usr/local/bin/reboot && \
     chmod +x /usr/local/bin/reboot && \
     ln -sf /usr/local/bin/reboot /usr/bin/reboot
 
+# Create mock gum to prevent interactive prompts
+RUN echo '#!/bin/bash' > /usr/local/bin/gum && \
+    echo 'case "$1" in' >> /usr/local/bin/gum && \
+    echo '  "confirm")' >> /usr/local/bin/gum && \
+    echo '    echo "Mock gum confirm: $2"' >> /usr/local/bin/gum && \
+    echo '    exit 0' >> /usr/local/bin/gum && \
+    echo '    ;;' >> /usr/local/bin/gum && \
+    echo '  "input")' >> /usr/local/bin/gum && \
+    echo '    if [[ "$*" == *"full name"* ]]; then' >> /usr/local/bin/gum && \
+    echo '      echo "Test User"' >> /usr/local/bin/gum && \
+    echo '    elif [[ "$*" == *"email"* ]]; then' >> /usr/local/bin/gum && \
+    echo '      echo "test@example.com"' >> /usr/local/bin/gum && \
+    echo '    else' >> /usr/local/bin/gum && \
+    echo '      echo "test_input"' >> /usr/local/bin/gum && \
+    echo '    fi' >> /usr/local/bin/gum && \
+    echo '    ;;' >> /usr/local/bin/gum && \
+    echo '  "spin")' >> /usr/local/bin/gum && \
+    echo '    shift' >> /usr/local/bin/gum && \
+    echo '    while [[ $# -gt 0 ]]; do' >> /usr/local/bin/gum && \
+    echo '      case $1 in' >> /usr/local/bin/gum && \
+    echo '        --title)' >> /usr/local/bin/gum && \
+    echo '          shift' >> /usr/local/bin/gum && \
+    echo '          echo "Mock gum spin: $1"' >> /usr/local/bin/gum && \
+    echo '          shift' >> /usr/local/bin/gum && \
+    echo '          ;;' >> /usr/local/bin/gum && \
+    echo '        --)' >> /usr/local/bin/gum && \
+    echo '          shift' >> /usr/local/bin/gum && \
+    echo '          echo "Mock gum spin: executing $@"' >> /usr/local/bin/gum && \
+    echo '          "$@"' >> /usr/local/bin/gum && \
+    echo '          break' >> /usr/local/bin/gum && \
+    echo '          ;;' >> /usr/local/bin/gum && \
+    echo '        *)' >> /usr/local/bin/gum && \
+    echo '          shift' >> /usr/local/bin/gum && \
+    echo '          ;;' >> /usr/local/bin/gum && \
+    echo '      esac' >> /usr/local/bin/gum && \
+    echo '    done' >> /usr/local/bin/gum && \
+    echo '    ;;' >> /usr/local/bin/gum && \
+    echo '  *)' >> /usr/local/bin/gum && \
+    echo '    echo "Mock gum: $@"' >> /usr/local/bin/gum && \
+    echo '    ;;' >> /usr/local/bin/gum && \
+    echo 'esac' >> /usr/local/bin/gum && \
+    chmod +x /usr/local/bin/gum && \
+    ln -sf /usr/local/bin/gum /usr/bin/gum
+
 # Create mock /dev/tty to prevent TTY access errors
 RUN mkdir -p /dev && \
     [ ! -e /dev/tty ] && mknod /dev/tty c 5 0 || true && \
@@ -87,6 +131,9 @@ ENV USER=testuser
 
 # Set environment to avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
+ENV NONINTERACTIVE=1
+ENV CI=true
+ENV FORCE_COLOR=0
 
 # Initialize user GPG if needed
 RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
@@ -104,4 +151,4 @@ RUN echo "%echo Generating test key" > /tmp/gpg-batch && \
 COPY . /home/testuser/omarchy-test
 
 # Run installation with proper environment and mock commands
-CMD ["/bin/bash", "-c", "export PATH=/usr/local/bin:$PATH && cd /home/testuser && curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash && echo 'Omarchy installation test completed'"]
+CMD ["/bin/bash", "-c", "export PATH=/usr/local/bin:$PATH && export NONINTERACTIVE=1 && export CI=true && cd /home/testuser && curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash && echo 'Omarchy installation test completed'"]
