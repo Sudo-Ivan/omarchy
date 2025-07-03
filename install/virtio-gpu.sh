@@ -1,5 +1,4 @@
 yay -S --noconfirm --needed \
-  mesa lib32-mesa vulkan-mesa-layers lib32-vulkan-mesa-layers \
   xf86-video-qxl spice-vdagent
 
 sudo systemctl enable --now spice-vdagentd
