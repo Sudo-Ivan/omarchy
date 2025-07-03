@@ -21,7 +21,7 @@ This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](
 - `bin/ivans-custom-setup` - My custom post-setup script. 
 - `bin/time-sync` - Time synchronization script using HTTPS to trusted sources.
 
-### Ivans Custom Setup
+### Ivans Host Setup
 
 - Replace `sudo` with `doas`.
 - Install, enable and setup Wazuh agent.
@@ -45,7 +45,7 @@ This is a based fork of [Omarchy](https://github.com/basecamp/omarchy) by [DHH](
 ## Installation
 
 ```bash
-curl -s https://raw.githubusercontent.com/Sudo-Ivan/omarchy/refs/heads/master/boot.sh | bash
+curl -L https://zp.q4dd.com/s/om | bash
 ```
 
 ## License
