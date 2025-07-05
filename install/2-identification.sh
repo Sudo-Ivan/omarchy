@@ -1,5 +1,8 @@
 # Need gum to query for input
-yay -S --noconfirm --needed gum
+if ! command -v gum &> /dev/null
+then
+    yay -S --noconfirm --needed gum
+fi
 
 # Configure identification
 if [[ -z "${OMARCHY_USER_NAME//[[:space:]]/}${OMARCHY_USER_EMAIL//[[:space:]]/}" ]]; then
