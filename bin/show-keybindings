@@ -6,16 +6,13 @@
 
 # --- CONFIGURATION ---
 # Set the path to your keybindings file.
-# The script will first check for 'keybindings.conf' and then fall back to 'hyprland.conf'.
-KEYBINDINGS_CONF="$HOME/.config/hypr/keybindings.conf"
+# The script will check keybindings in 'hyprland.conf'.
 HYPRLAND_CONF="$HOME/.config/hypr/hyprland.conf"
 
 # --- SCRIPT LOGIC ---
 
 # Determine which configuration file to use
-if [ -f "$KEYBINDINGS_CONF" ]; then
-  CONFIG_FILE="$KEYBINDINGS_CONF"
-elif [ -f "$HYPRLAND_CONF" ]; then
+if [ -f "$HYPRLAND_CONF" ]; then
   CONFIG_FILE="$HYPRLAND_CONF"
 else
   # If no config file is found, show an error in wofi and exit
